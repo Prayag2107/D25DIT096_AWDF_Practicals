@@ -1,0 +1,17 @@
+{
+  "name": "task-manager-api",
+  "version": "1.0.0",
+  "description": "RESTful Task Management API with Express",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test-api.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}
