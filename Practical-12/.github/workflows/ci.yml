@@ -1,0 +1,66 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Code Quality & Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install frontend dependencies
+        working-directory: Practical-12/frontend
+        run: npm ci
+
+      - name: Run frontend linter
+        working-directory: Practical-12/frontend
+        run: npm run lint
+
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install backend dependencies
+        working-directory: Practical-12/backend
+        run: npm ci
+
+      - name: Run backend automated tests
+        working-directory: Practical-12/backend
+        env:
+          NODE_ENV: test
+          JWT_SECRET: ci_test_jwt_secret_token_key_2026_antigravity
+        run: npm test -- --runInBand
+
+      - name: Install frontend dependencies
+        working-directory: Practical-12/frontend
+        run: npm ci
+
+      - name: Build frontend production bundle
+        working-directory: Practical-12/frontend
+        run: npm run build
