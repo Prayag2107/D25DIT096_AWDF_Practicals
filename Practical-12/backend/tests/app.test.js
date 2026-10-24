@@ -6,8 +6,7 @@ describe('Practical 12 - Automated API Test Suite (CI/CD)', () => {
         test('GET /api/health should return 200 OK and health status', async () => {
             const response = await request(app).get('/api/health');
 
-            // Deliberately incorrect assertion for CI failure demonstration (Practical 12 Step 9)
-            expect(response.statusCode).toBe(999);
+            expect(response.statusCode).toBe(200);
             expect(response.headers['content-type']).toMatch(/json/);
             expect(response.body).toHaveProperty('success', true);
             expect(response.body).toHaveProperty('message');
