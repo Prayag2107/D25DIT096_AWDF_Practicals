@@ -1,0 +1,404 @@
+{
+  "info": {
+    "_postman_id": "b18f6230-e55d-4a1c-8b89-practical13awdf",
+    "name": "Practical 13 - AI API Integration (Task Management)",
+    "description": "Collection for testing Practical 13: AI API Integration with OpenAI SDK, task description generator, rate limiting, and graceful degradation.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000/api",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "taskId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "generatedDescription",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Health Check & AI Status",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Health check includes AI configuration', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('ai');",
+              "    pm.expect(jsonData.ai).to.have.property('model');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["health"]
+        }
+      }
+    },
+    {
+      "name": "1. Auth - Register",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 201 or 409', function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([201, 409]);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"student_ai@example.com\",\n  \"password\": \"Password123!\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/register",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "register"]
+        }
+      }
+    },
+    {
+      "name": "2. Auth - Login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "var jsonData = pm.response.json();",
+              "if (jsonData.token) {",
+              "    pm.collectionVariables.set('token', jsonData.token);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"student_ai@example.com\",\n  \"password\": \"Password123!\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "login"]
+        }
+      }
+    },
+    {
+      "name": "3. Test A: Successful AI Generation",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200 or 503 fallback', function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 503]);",
+              "});",
+              "var jsonData = pm.response.json();",
+              "if (pm.response.code === 200) {",
+              "    pm.test('Generated non-empty description', function () {",
+              "        pm.expect(jsonData).to.have.property('description');",
+              "        pm.expect(jsonData.description.length).to.be.above(0);",
+              "        pm.expect(jsonData.fallback).to.be.false;",
+              "    });",
+              "    pm.collectionVariables.set('generatedDescription', jsonData.description);",
+              "} else {",
+              "    pm.test('Safe fallback response when unconfigured', function () {",
+              "        pm.expect(jsonData.fallback).to.be.true;",
+              "        pm.expect(jsonData.message).to.include('temporarily unavailable');",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Complete the database assignment\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/ai/generate-description",
+          "host": ["{{baseUrl}}"],
+          "path": ["ai", "generate-description"]
+        }
+      }
+    },
+    {
+      "name": "4. Test B: Missing Title (400 Bad Request)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 400 Bad Request', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "var jsonData = pm.response.json();",
+              "pm.test('Error message notes missing title', function () {",
+              "    pm.expect(jsonData.message).to.include('title');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/ai/generate-description",
+          "host": ["{{baseUrl}}"],
+          "path": ["ai", "generate-description"]
+        }
+      }
+    },
+    {
+      "name": "5. Test C: Missing Authentication (401 Unauthorized)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 401 Unauthorized', function () {",
+              "    pm.response.to.have.status(401);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Secure Task Without Token\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/ai/generate-description",
+          "host": ["{{baseUrl}}"],
+          "path": ["ai", "generate-description"]
+        }
+      }
+    },
+    {
+      "name": "6. Test D: Graceful Degradation / Status Check",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "var jsonData = pm.response.json();",
+              "pm.test('Reports service metadata without leaking secret key', function () {",
+              "    pm.expect(jsonData).to.have.property('service');",
+              "    pm.expect(jsonData).to.have.property('configured');",
+              "    pm.expect(JSON.stringify(jsonData)).to.not.include('sk-');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/ai/status",
+          "host": ["{{baseUrl}}"],
+          "path": ["ai", "status"]
+        }
+      }
+    },
+    {
+      "name": "7. Test E.1: Rate Limit - First Request",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200 or 503 fallback', function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 503]);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Prepare AWS Certification Exam\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/ai/generate-description",
+          "host": ["{{baseUrl}}"],
+          "path": ["ai", "generate-description"]
+        }
+      }
+    },
+    {
+      "name": "8. Test E.2: Rate Limit - Immediate Second Request (429)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Second rapid request returns 429 Too Many Requests', function () {",
+              "    pm.response.to.have.status(429);",
+              "});",
+              "var jsonData = pm.response.json();",
+              "pm.test('Contains Retry-After header and message', function () {",
+              "    pm.expect(jsonData.message).to.include('Rate limit exceeded');",
+              "    pm.expect(jsonData).to.have.property('retryAfter');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Prepare AWS Certification Exam\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/ai/generate-description",
+          "host": ["{{baseUrl}}"],
+          "path": ["ai", "generate-description"]
+        }
+      }
+    },
+    {
+      "name": "9. Test Core CRUD Independence: Create Task",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201 Created', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "var jsonData = pm.response.json();",
+              "if (jsonData.data && jsonData.data._id) {",
+              "    pm.collectionVariables.set('taskId', jsonData.data._id);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Prepare AWS Certification Exam\",\n  \"description\": \"Review EC2, S3, IAM, and VPC architectures for the Solutions Architect exam.\",\n  \"priority\": \"high\",\n  \"completed\": false\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/tasks",
+          "host": ["{{baseUrl}}"],
+          "path": ["tasks"]
+        }
+      }
+    },
+    {
+      "name": "10. Core CRUD Independence: Retrieve Tasks",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/tasks",
+          "host": ["{{baseUrl}}"],
+          "path": ["tasks"]
+        }
+      }
+    }
+  ]
+}
